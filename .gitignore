@@ -1,0 +1,10 @@
+secrets.yaml
+.storage/
+.cloud/
+*.db
+*.db-*
+*.log*
+backups/
+tts/
+__pycache__/
+*.py[cod]

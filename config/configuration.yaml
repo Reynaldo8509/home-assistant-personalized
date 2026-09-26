@@ -1,0 +1,299 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+shell_command:
+  apagar_pc_hp_display_one: >-
+    ssh -o BatchMode=yes -o ConnectTimeout=8
+    -o StrictHostKeyChecking=yes
+    -o UserKnownHostsFile=/config/ssh/known_hosts
+    -i /config/ssh/display_one_hp_ed25519
+    ssh_admin@192.0.2.10 "shutdown /s /t 20"
+
+  apagar_laptop_device_two: >-
+    ssh -o BatchMode=yes -o ConnectTimeout=8
+    -o StrictHostKeyChecking=yes
+    -o UserKnownHostsFile=/config/ssh/known_hosts
+    -i /config/ssh/device_two_laptop_ed25519
+    ssh_admin@192.0.2.10 "shutdown /s /t 20"
+
+  hermes_firetv_news: "python3 /config/firetv_adb.py news"
+  hermes_firetv_ecuavisa: "python3 /config/firetv_adb.py ecuavisa"
+  hermes_firetv_netflix: "python3 /config/firetv_adb.py netflix"
+  hermes_firetv_wake: "python3 /config/firetv_adb.py wake"
+  hermes_firetv_off: "python3 /config/firetv_adb.py off"
+  hermes_firetv_volume: "python3 /config/firetv_adb.py volume {{ level | int }}"
+  hermes_firetv_volume_delta: "python3 /config/firetv_adb.py volume_delta {{ direction }} 1"
+
+# Controles y sensores locales de qBittorrent para Alexa/Home Assistant.
+
+rest_command:
+  qbittorrent_pause_all:
+    url: http://192.0.2.10:8080/api/v2/torrents/stop
+    method: POST
+    content_type: application/x-www-form-urlencoded
+    payload: "hashes=all"
+  qbittorrent_resume_all:
+    url: http://192.0.2.10:8080/api/v2/torrents/start
+    method: POST
+    content_type: application/x-www-form-urlencoded
+    payload: "hashes=all"
+
+rest:
+  - resource: http://192.0.2.10:8080/api/v2/torrents/info?filter=all
+    method: GET
+    scan_interval: 30
+    sensor:
+      - name: Descargas totales
+        unique_id: qbittorrent_descargas_totales
+        value_template: "{{ value_json | count }}"
+        unit_of_measurement: "descargas"
+      - name: Descargas activas
+        unique_id: qbittorrent_descargas_activas
+        value_template: "{{ value_json | selectattr('state', 'in', ['downloading', 'metaDL', 'forcedDL', 'queuedDL', 'stalledDL', 'checkingDL', 'allocating']) | list | count }}"
+        unit_of_measurement: "descargas"
+      - name: Progreso de Descarga
+        unique_id: qbittorrent_progreso_global
+        value_template: "{{ ((value_json | map(attribute='progress') | sum / (value_json | count)) * 100) | round(1) if value_json | count > 0 else 0 }}"
+        unit_of_measurement: "%"
+      - name: Velocidad de descarga
+        unique_id: qbittorrent_velocidad_descarga
+        value_template: "{{ value_json | map(attribute='dlspeed') | sum }}"
+        unit_of_measurement: "B/s"
+      - name: Resumen de Descarga
+        unique_id: qbittorrent_resumen_descargas
+        value_template: "{{ value_json | map(attribute='name') | list | join(', ') | truncate(250, true, '') if value_json | count > 0 else 'Sin descargas' }}"
+      - name: Estado de Descargas
+        unique_id: qbittorrent_estado_de_las_descargas
+        icon: mdi:download-box
+        value_template: >-
+          {% set torrents = value_json if value_json is iterable else [] %}
+          {% set total = torrents | count %}
+          {% set running = torrents | selectattr('state', 'in', ['downloading', 'metaDL', 'forcedDL', 'checkingDL', 'allocating']) | list | count %}
+          {% if total == 0 %}El estado del servicio de qBittorrent es activo sin descargas corriendo en este momento.
+          {% elif running > 0 %}El estado del servicio de qBittorrent es activo con {{ running }} descargas corriendo.
+          {% else %}El servicio de qBittorrent está activo, pero todas las descargas están pausadas.{% endif %}
+
+# Wake-on-LAN: paquetes mágicos para equipos autorizados de la red local.
+wake_on_lan:
+
+input_boolean:
+  wake_pc_hp_display_one:
+    name: Encender PC HP de display_one
+    icon: mdi:desktop-tower
+  wake_laptop_device_two:
+    name: Encender Laptop de device_two
+    icon: mdi:laptop
+  wake_dell_g15:
+    name: Encender Dell G15 por Ethernet
+    icon: mdi:laptop
+  wake_impresora_hp:
+    name: Despertar impresora HP
+    icon: mdi:printer
+  wake_fire_tv_denis:
+    name: Despertar Fire TV de Denis
+    icon: mdi:television
+
+  noticias_ecuador_hoy:
+    name: Noticias Ecuador Hoy
+    icon: mdi:newspaper
+  ecuavisa:
+    name: Ecuavisa
+    icon: mdi:television-play
+  netflix_perfiles:
+    name: Netflix
+    icon: mdi:netflix
+
+template:
+  - switch:
+      - name: Laptop de device_two
+        unique_id: laptop_de_device_two_alexa_switch
+        default_entity_id: switch.laptop_de_device_two
+        icon: mdi:laptop
+        state: "{{ is_state('binary_sensor.cuarto_device_two_laptop_device_two', 'on') }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.wake_laptop_device_two
+        turn_off:
+          - service: shell_command.apagar_laptop_device_two
+          - delay: "00:00:20"
+          - service: homeassistant.update_entity
+            target:
+              entity_id: binary_sensor.cuarto_device_two_laptop_device_two
+
+      - name: PC de display_one
+        unique_id: encender_pc_de_display_one_wol
+        default_entity_id: switch.encender_pc_de_display_one
+        icon: mdi:desktop-tower
+        state: "{{ is_state('binary_sensor.192_168_18_22', 'on') }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.wake_pc_hp_display_one
+        turn_off:
+          - service: shell_command.apagar_pc_hp_display_one
+          - delay: "00:00:20"
+          - service: homeassistant.update_entity
+            target:
+              entity_id: binary_sensor.192_168_18_22
+
+      - name: TV de la Sala
+        unique_id: tv_de_la_sala_adb
+        default_entity_id: switch.tv_de_la_sala
+        icon: mdi:television
+        state: "{{ is_state('binary_sensor.sala_general_firetvstick_de_denis_connectivity', 'on') }}"
+        turn_on:
+          - service: shell_command.hermes_firetv_wake
+        turn_off:
+          - service: shell_command.hermes_firetv_off
+
+      - name: TV de display_one
+        unique_id: tv_de_display_one_alexa_switch
+        default_entity_id: switch.tv_de_display_one
+        icon: mdi:television
+        state: "{{ is_state('binary_sensor.192_168_18_6', 'on') }}"
+        turn_on:
+          - service: media_player.turn_on
+            target:
+              entity_id: media_player.lg_webos_tv_ua7500psa
+        turn_off:
+          - service: media_player.turn_off
+            target:
+              entity_id: media_player.lg_webos_tv_ua7500psa
+
+      # Switches fijos para Alexa: son más fiables que scripts parametrizados.
+      - name: Volumen Sala 10
+        unique_id: tv_de_la_sala_volumen_10
+        icon: mdi:volume-low
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 10}
+      - name: Volumen Sala 20
+        unique_id: tv_de_la_sala_volumen_20
+        icon: mdi:volume-low
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 20}
+      - name: Volumen Sala 30
+        unique_id: tv_de_la_sala_volumen_30
+        icon: mdi:volume-medium
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 30}
+      - name: Volumen Sala 40
+        unique_id: tv_de_la_sala_volumen_40
+        icon: mdi:volume-medium
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 40}
+      - name: Volumen Sala 50
+        unique_id: tv_de_la_sala_volumen_50
+        icon: mdi:volume-medium
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 50}
+      - name: Volumen Sala 60
+        unique_id: tv_de_la_sala_volumen_60
+        icon: mdi:volume-high
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 60}
+      - name: Volumen Sala 70
+        unique_id: tv_de_la_sala_volumen_70
+        icon: mdi:volume-high
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 70}
+      - name: Volumen Sala 80
+        unique_id: tv_de_la_sala_volumen_80
+        icon: mdi:volume-high
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 80}
+      - name: Volumen Sala 90
+        unique_id: tv_de_la_sala_volumen_90
+        icon: mdi:volume-high
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 90}
+      - name: Volumen Sala 100
+        unique_id: tv_de_la_sala_volumen_100
+        icon: mdi:volume-high
+        turn_on:
+          - service: shell_command.hermes_firetv_volume
+            data: {level: 100}
+      - name: Subir Volumen Sala
+        unique_id: tv_de_la_sala_subir_volumen
+        icon: mdi:volume-plus
+        turn_on:
+          - service: shell_command.hermes_firetv_volume_delta
+            data: {direction: up}
+      - name: Bajar Volumen Sala
+        unique_id: tv_de_la_sala_bajar_volumen
+        icon: mdi:volume-minus
+        turn_on:
+          - service: shell_command.hermes_firetv_volume_delta
+            data: {direction: down}
+
+      - name: Noticias Ecuador Hoy
+        unique_id: noticias_ecuador_hoy_alexa_switch
+        default_entity_id: switch.noticias_ecuador_hoy
+        icon: mdi:newspaper
+        # One Alexa-facing switch. The hidden helper reflects the running flow.
+        state: "{{ is_state('input_boolean.noticias_ecuador_hoy', 'on') }}"
+        turn_on:
+          - service: script.noticias_ecuador_hoy
+        turn_off:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.noticias_ecuador_hoy
+
+      - name: Ecuavisa
+        unique_id: ecuavisa_alexa_switch
+        default_entity_id: switch.ecuavisa
+        icon: mdi:television-play
+        state: "{{ is_state('input_boolean.ecuavisa', 'on') }}"
+        turn_on:
+          - service: script.ecuavisa
+        turn_off:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.ecuavisa
+
+      - name: Netflix
+        unique_id: netflix_perfiles_alexa_switch
+        default_entity_id: switch.netflix_perfiles
+        icon: mdi:netflix
+        state: "{{ is_state('input_boolean.netflix_perfiles', 'on') }}"
+        turn_on:
+          - service: script.netflix_perfiles
+        turn_off:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.netflix_perfiles
+
+
+# Laptop availability is monitored by the Ping integration every five minutes.
+# It only updates entity state; it sends no notification when a laptop is off.
+command_line:
+  - sensor:
+      name: Laptop Dell G15 SSH
+      unique_id: laptop_dell_g15_ssh
+      command: >-
+        ssh -o BatchMode=yes -o ConnectTimeout=6
+        -o StrictHostKeyChecking=yes
+        -o UserKnownHostsFile=/config/ssh/known_hosts
+        -i /config/ssh/dellg15_ed25519
+        hermes-remote@192.0.2.10 hostname
+      command_timeout: 10
+      scan_interval: 60
+      value_template: "{{ value | trim }}"

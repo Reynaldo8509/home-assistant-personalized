@@ -1,0 +1,127 @@
+qbittorrent_pausar_descargas:
+  alias: Pausar descargas qBittorrent
+  mode: single
+  sequence:
+    - service: rest_command.qbittorrent_pause_all
+
+qbittorrent_reanudar_descargas:
+  alias: Reanudar descargas qBittorrent
+  mode: single
+  sequence:
+    - service: rest_command.qbittorrent_resume_all
+
+encender_pc_hp_display_one:
+  alias: Encender PC HP de display_one
+  description: Solicita Wake-on-LAN mediante la automatización de confirmación.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.wake_pc_hp_display_one
+
+encender_dell_g15:
+  alias: Encender Dell G15
+  description: Solicita Wake-on-LAN por Ethernet mediante la automatización de confirmación.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.wake_dell_g15
+
+despertar_impresora_hp:
+  alias: Despertar impresora HP
+  description: Solicita Wake-on-LAN y confirma disponibilidad; no imprime.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.wake_impresora_hp
+
+despertar_fire_tv_denis:
+  alias: Despertar Fire TV de Denis
+  description: Solicita Wake-on-LAN y confirma conectividad; no inicia reproducción.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.wake_fire_tv_denis
+
+noticias_ecuador_hoy:
+  alias: Noticias Ecuador Hoy
+  description: Enciende el Fire TV y abre YouTube con las noticias de Ecuador de hoy. No lee noticias en Alexa.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.noticias_ecuador_hoy
+    - service: homeassistant.update_entity
+      target:
+        entity_id: binary_sensor.sala_general_firetvstick_de_denis_connectivity
+    - service: wake_on_lan.send_magic_packet
+      data:
+        mac: 02:00:00:00:00:01
+        broadcast_address: 192.0.2.10
+    - wait_template: '{{ is_state(''binary_sensor.sala_general_firetvstick_de_denis_connectivity'', ''on'') }}'
+      timeout: 00:01:00
+      continue_on_timeout: true
+    - service: shell_command.hermes_firetv_wake
+      continue_on_error: true
+    - delay: "00:00:02"
+    - service: shell_command.hermes_firetv_news
+      continue_on_error: true
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.noticias_ecuador_hoy
+
+netflix_perfiles:
+  alias: Netflix
+  description: Enciende el Fire TV y abre Netflix en la pantalla de selección de perfiles.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.netflix_perfiles
+    - service: homeassistant.update_entity
+      target:
+        entity_id: binary_sensor.sala_general_firetvstick_de_denis_connectivity
+    - service: wake_on_lan.send_magic_packet
+      data:
+        mac: 02:00:00:00:00:01
+        broadcast_address: 192.0.2.10
+    - wait_template: '{{ is_state(''binary_sensor.sala_general_firetvstick_de_denis_connectivity'', ''on'') }}'
+      timeout: 00:01:00
+      continue_on_timeout: true
+    - service: shell_command.hermes_firetv_wake
+      continue_on_error: true
+    - delay: "00:00:02"
+    - service: shell_command.hermes_firetv_netflix
+      continue_on_error: true
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.netflix_perfiles
+
+ecuavisa:
+  alias: Ecuavisa
+  description: Enciende el Fire TV y deja abierta la aplicación Ecuavisa Play.
+  mode: single
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.ecuavisa
+    - service: shell_command.hermes_firetv_ecuavisa
+      continue_on_error: true
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.ecuavisa
+
+apagar_tv_sala:
+  alias: Apagar TV de la Sala
+  mode: single
+  sequence:
+    - service: shell_command.hermes_firetv_off
+
+encender_tv_sala:
+  alias: Encender TV de la Sala
+  mode: single
+  sequence:
+    - service: shell_command.hermes_firetv_wake

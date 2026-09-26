@@ -1,0 +1,298 @@
+- id: hermes_confirmar_wol_laptop_device_two
+  alias: Encender y confirmar Laptop de device_two
+  description: Envía Wake-on-LAN y confirma por ping; no inicia otras acciones.
+  mode: single
+  max_exceeded: silent
+  trigger:
+  - platform: state
+    entity_id: input_boolean.wake_laptop_device_two
+    to: 'on'
+  condition:
+  - condition: template
+    value_template: '{{ this.attributes.last_triggered is none or (as_timestamp(now()) - as_timestamp(this.attributes.last_triggered)) > 300 }}'
+  - condition: template
+    value_template: '{{ not is_state(''binary_sensor.cuarto_device_two_laptop_device_two'', ''on'') }}'
+  action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id: binary_sensor.cuarto_device_two_laptop_device_two
+  - service: wake_on_lan.send_magic_packet
+    data:
+      mac: 02:00:00:00:00:01
+      broadcast_address: 192.0.2.10
+  - repeat:
+      sequence:
+      - delay: 00:00:10
+      - service: homeassistant.update_entity
+        target:
+          entity_id: binary_sensor.cuarto_device_two_laptop_device_two
+      until:
+      - condition: template
+        value_template: '{{ is_state(''binary_sensor.cuarto_device_two_laptop_device_two'', ''on'') or repeat.index >= 12 }}'
+  - choose:
+    - conditions: '{{ is_state(''binary_sensor.cuarto_device_two_laptop_device_two'', ''on'') }}'
+      sequence:
+      - service: persistent_notification.create
+        data:
+          title: Wake-on-LAN
+          message: Laptop de device_two encendida y visible en la red.
+    default:
+    - service: persistent_notification.create
+      data:
+        title: Wake-on-LAN
+        message: No se pudo confirmar el encendido de la Laptop de device_two después de 2 minutos.
+    - service: logbook.log
+      data:
+        name: Domus · Wake-on-LAN
+        message: No se pudo confirmar el encendido de la Laptop de device_two.
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wake_laptop_device_two
+
+- id: hermes_confirmar_wol_pc_hp_display_one
+  alias: Encender y confirmar PC HP de display_one
+  description: Envía Wake-on-LAN y confirma por ping; no inicia otras acciones.
+  mode: single
+  max_exceeded: silent
+  trigger:
+  - platform: state
+    entity_id: input_boolean.wake_pc_hp_display_one
+    to: 'on'
+  condition:
+  - condition: template
+    value_template: '{{ this.attributes.last_triggered is none or (as_timestamp(now())
+      - as_timestamp(this.attributes.last_triggered)) > 300 }}'
+  - condition: template
+    value_template: '{{ not is_state(''binary_sensor.192_168_18_22'', ''on'') }}'
+  action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id: binary_sensor.192_168_18_22
+  - service: wake_on_lan.send_magic_packet
+    data:
+      mac: 02:00:00:00:00:01
+      broadcast_address: 192.0.2.10
+  - repeat:
+      sequence:
+      - delay: 00:00:10
+      - service: homeassistant.update_entity
+        target:
+          entity_id: binary_sensor.192_168_18_22
+      until:
+      - condition: template
+        value_template: '{{ is_state(''binary_sensor.192_168_18_22'', ''on'') or repeat.index >= 12 }}'
+  - choose:
+    - conditions: '{{ is_state(''binary_sensor.192_168_18_22'', ''on'') }}'
+      sequence:
+      - service: persistent_notification.create
+        data:
+          title: Wake-on-LAN
+          message: PC HP de display_one encendida y visible en la red.
+    default:
+    - service: persistent_notification.create
+      data:
+        title: Wake-on-LAN
+        message: No se pudo confirmar el encendido de la PC HP de display_one después de
+          2 minutos.
+    - service: logbook.log
+      data:
+        name: Domus · Wake-on-LAN
+        message: No se pudo confirmar el encendido de la PC HP de display_one.
+    - service: persistent_notification.create
+      data:
+        title: Domus · Wake-on-LAN
+        message: No se pudo confirmar el encendido de la PC HP de display_one después de 2 minutos.
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wake_pc_hp_display_one
+- id: hermes_homeassistant_presence_telegram
+  alias: Domus · notificar presencia de Reynaldo y display_one
+  description: Notifica llegada o salida estable a Telegram mediante las entidades
+    person.
+  mode: restart
+  trigger:
+  - platform: state
+    entity_id:
+    - person.reynaldo_amado_rodriguez_gonzalez
+    - person.display_one_sanchez_gonzalez
+    from: not_home
+    to: home
+    for: 00:00:45
+  - platform: state
+    entity_id:
+    - person.reynaldo_amado_rodriguez_gonzalez
+    - person.display_one_sanchez_gonzalez
+    from: home
+    to: not_home
+    for: 00:00:45
+  action:
+- id: hermes_confirmar_wol_dell_g15
+  alias: Encender y confirmar Dell G15 por Ethernet
+  description: Envía Wake-on-LAN y actualiza el ping antes de confirmar disponibilidad.
+  mode: single
+  max_exceeded: silent
+  trigger:
+  - platform: state
+    entity_id: input_boolean.wake_dell_g15
+    to: 'on'
+  condition:
+  - condition: template
+    value_template: '{{ this.attributes.last_triggered is none or (as_timestamp(now())
+      - as_timestamp(this.attributes.last_triggered)) > 300 }}'
+  - condition: template
+    value_template: '{{ not is_state(''binary_sensor.192_168_18_12'', ''on'') }}'
+  action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id: binary_sensor.192_168_18_12
+  - service: wake_on_lan.send_magic_packet
+    data:
+      mac: 02:00:00:00:00:01
+      broadcast_address: 192.0.2.10
+  - wait_template: '{{ is_state(''binary_sensor.192_168_18_12'', ''on'') }}'
+    timeout: 00:02:00
+    continue_on_timeout: true
+  - choose:
+    - conditions: '{{ is_state(''binary_sensor.192_168_18_12'', ''on'') }}'
+      sequence:
+      - service: persistent_notification.create
+        data:
+          title: Wake-on-LAN
+          message: Dell G15 encendida y visible por Ethernet.
+    default:
+    - service: persistent_notification.create
+      data:
+        title: Wake-on-LAN
+        message: No se pudo confirmar el encendido de la Dell G15 después de 2 minutos.
+    - service: logbook.log
+      data:
+        name: Domus · Wake-on-LAN
+        message: No se pudo confirmar el encendido de la Dell G15.
+    - service: persistent_notification.create
+      data:
+        title: Domus · Wake-on-LAN
+        message: No se pudo confirmar el encendido de la Dell G15 después de 2 minutos.
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wake_dell_g15
+- id: hermes_confirmar_wol_impresora_hp
+  alias: Despertar y confirmar impresora HP
+  description: Envía Wake-on-LAN y confirma disponibilidad; no imprime nada.
+  mode: single
+  max_exceeded: silent
+  trigger:
+  - platform: state
+    entity_id: input_boolean.wake_impresora_hp
+    to: 'on'
+  condition:
+  - condition: template
+    value_template: '{{ this.attributes.last_triggered is none or (as_timestamp(now())
+      - as_timestamp(this.attributes.last_triggered)) > 300 }}'
+  - condition: template
+    value_template: '{{ states(''sensor.hp_smart_tank_710_720_series'') in [''unknown'',
+      ''unavailable'', ''none''] }}'
+  action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id: sensor.hp_smart_tank_710_720_series
+  - service: wake_on_lan.send_magic_packet
+    data:
+      mac: 02:00:00:00:00:01
+      broadcast_address: 192.0.2.10
+  - wait_template: '{{ states(''sensor.hp_smart_tank_710_720_series'') not in [''unknown'',
+      ''unavailable'', ''none''] }}'
+    timeout: 00:01:00
+    continue_on_timeout: true
+  - choose:
+    - conditions: '{{ states(''sensor.hp_smart_tank_710_720_series'') not in [''unknown'',
+        ''unavailable'', ''none''] }}'
+      sequence:
+      - service: persistent_notification.create
+        data:
+          title: Despertar impresora
+          message: La impresora HP responde en la red. No se envió ningún trabajo
+            de impresión.
+    default:
+    - service: persistent_notification.create
+      data:
+        title: Despertar impresora
+        message: No se pudo confirmar que la impresora HP respondiera después de 1
+          minuto.
+    - service: logbook.log
+      data:
+        name: Domus · Wake-on-LAN
+        message: No se pudo confirmar la disponibilidad de la impresora HP.
+    - service: persistent_notification.create
+      data:
+        title: Domus · Wake-on-LAN
+        message: No se pudo confirmar la disponibilidad de la impresora HP después de 1 minuto.
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wake_impresora_hp
+- id: hermes_confirmar_wol_fire_tv_denis
+  alias: Despertar y confirmar Fire TV de Denis
+  description: Envía Wake-on-LAN y actualiza conectividad; no inicia reproducción.
+  mode: single
+  max_exceeded: silent
+  trigger:
+  - platform: state
+    entity_id: input_boolean.wake_fire_tv_denis
+    to: 'on'
+  condition:
+  - condition: template
+    value_template: '{{ this.attributes.last_triggered is none or (as_timestamp(now())
+      - as_timestamp(this.attributes.last_triggered)) > 300 }}'
+  - condition: template
+    value_template: '{{ not is_state(''binary_sensor.sala_general_firetvstick_de_denis_connectivity'',
+      ''on'') }}'
+  action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id: binary_sensor.sala_general_firetvstick_de_denis_connectivity
+  - service: wake_on_lan.send_magic_packet
+    data:
+      mac: 02:00:00:00:00:01
+      broadcast_address: 192.0.2.10
+  - wait_template: '{{ is_state(''binary_sensor.sala_general_firetvstick_de_denis_connectivity'',
+      ''on'') }}'
+    timeout: 00:01:00
+    continue_on_timeout: true
+  - choose:
+    - conditions: '{{ is_state(''binary_sensor.sala_general_firetvstick_de_denis_connectivity'',
+        ''on'') }}'
+      sequence:
+      - service: persistent_notification.create
+        data:
+          title: Despertar Fire TV
+          message: El Fire TV de Denis responde en la red. No se inició reproducción.
+    default:
+    - service: persistent_notification.create
+      data:
+        title: Despertar Fire TV
+        message: No se pudo confirmar que el Fire TV respondiera después de 1 minuto.
+    - service: logbook.log
+      data:
+        name: Domus · Wake-on-LAN
+        message: No se pudo confirmar la conectividad del Fire TV de Denis.
+    - service: persistent_notification.create
+      data:
+        title: Domus · Wake-on-LAN
+        message: No se pudo confirmar la conectividad del Fire TV de Denis después de 1 minuto.
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wake_fire_tv_denis
+- id: hermes_ping_laptops_cada_5_min
+  alias: Domus · actualizar disponibilidad de equipos críticos cada 15 min
+  description: Actualiza solo estados de conectividad, sin SSH ni notificaciones.
+  triggers:
+  - minutes: /15
+    trigger: time_pattern
+  actions:
+  - target:
+      entity_id:
+      - binary_sensor.192_168_18_22
+      - binary_sensor.cuarto_device_two_laptop_device_two
+      - binary_sensor.192_168_18_12
+      - binary_sensor.sala_general_firetvstick_de_denis_connectivity
+    action: homeassistant.update_entity
+  mode: single
